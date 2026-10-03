@@ -89,7 +89,7 @@ def main() -> None:
         writer.writerow(
             ["site", "lat", "lon", "reference_label", "scene_date", "cloud_cover"]
             + list(SENTINEL2_BANDS)
-            + ["iron_oxide_ratio", "carbonate_ratio", "clay_ratio", "flags"]
+            + ["iron_oxide_ratio", "carbonate_ratio", "clay_ratio", "ndvi", "vegetated", "flags"]
         )
 
         for name, lat, lon, label in POINTS:
@@ -103,9 +103,11 @@ def main() -> None:
             writer.writerow(
                 [name, lat, lon, label, item.datetime.date().isoformat(), item.properties.get("eo:cloud_cover")]
                 + [bands[b] for b in SENTINEL2_BANDS]
-                + [ratios.iron_oxide, ratios.carbonate, ratios.clay, ";".join(ratios.flags)]
+                + [ratios.iron_oxide, ratios.carbonate, ratios.clay, ratios.ndvi, ratios.vegetated,
+                   ";".join(ratios.flags)]
             )
-            print(f"  ratios: Fe2O3={ratios.iron_oxide:.3f} CO3={ratios.carbonate:.3f} "
+            print(f"  NDVI={ratios.ndvi:.3f} ({'vegetated, ratios unreliable' if ratios.vegetated else 'bare ground'}) "
+                  f"Fe2O3={ratios.iron_oxide:.3f} CO3={ratios.carbonate:.3f} "
                   f"clay={ratios.clay:.3f} flags={ratios.flags}")
 
     print(f"\nWrote {OUT_PATH}")
