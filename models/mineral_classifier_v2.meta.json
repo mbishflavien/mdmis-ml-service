@@ -1,0 +1,103 @@
+{
+  "version": "v2",
+  "created_at": "2026-09-28T20:25:25.156295+00:00",
+  "classes": [
+    "beryl",
+    "cassiterite",
+    "cobalt",
+    "coltan",
+    "copper",
+    "gemstone",
+    "lithium",
+    "unknown",
+    "wolframite"
+  ],
+  "dropped_classes": {},
+  "feature_grid": {
+    "min_cm": 150.0,
+    "max_cm": 1300.0,
+    "points": 200
+  },
+  "training_samples": 304,
+  "samples_per_class": {
+    "unknown": 113,
+    "gemstone": 77,
+    "beryl": 33,
+    "copper": 21,
+    "lithium": 16,
+    "coltan": 15,
+    "cobalt": 14,
+    "cassiterite": 8,
+    "wolframite": 7
+  },
+  "held_out_metrics": {
+    "beryl": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 7.0
+    },
+    "cassiterite": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 2.0
+    },
+    "cobalt": {
+      "precision": 0.6666666666666666,
+      "recall": 0.6666666666666666,
+      "f1-score": 0.6666666666666666,
+      "support": 3.0
+    },
+    "coltan": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 3.0
+    },
+    "copper": {
+      "precision": 0.8,
+      "recall": 1.0,
+      "f1-score": 0.8888888888888888,
+      "support": 4.0
+    },
+    "gemstone": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 15.0
+    },
+    "lithium": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 3.0
+    },
+    "unknown": {
+      "precision": 1.0,
+      "recall": 0.9565217391304348,
+      "f1-score": 0.9777777777777777,
+      "support": 23.0
+    },
+    "wolframite": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 1.0
+    },
+    "accuracy": 0.9672131147540983,
+    "macro avg": {
+      "precision": 0.9407407407407408,
+      "recall": 0.9581320450885669,
+      "f1-score": 0.9481481481481482,
+      "support": 61.0
+    },
+    "weighted avg": {
+      "precision": 0.9704918032786886,
+      "recall": 0.9672131147540983,
+      "f1-score": 0.9679417122040073,
+      "support": 61.0
+    }
+  },
+  "source": "RRUFF Raman spectral database (excellent_unoriented + fair_unoriented tiers)"
+}

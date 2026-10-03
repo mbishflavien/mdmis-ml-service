@@ -7,3 +7,8 @@ pandas>=2.2,<2.3
 numpy>=1.26,<2.1
 joblib>=1.4,<1.5
 httpx>=0.27,<0.28
+
+# Sentinel-2 ingestion (scripts/fetch_sentinel2.py)
+pystac-client>=0.9,<0.10
+planetary-computer>=1.0,<1.1
+rasterio>=1.4,<1.5
