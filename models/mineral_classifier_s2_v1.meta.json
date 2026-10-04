@@ -1,0 +1,86 @@
+{
+  "version": "v1",
+  "created_at": "2026-10-04T13:35:59.206989+00:00",
+  "classes": [
+    "beryl",
+    "cassiterite",
+    "copper",
+    "gemstone",
+    "lithium",
+    "unknown"
+  ],
+  "dropped_classes": {},
+  "feature_columns": [
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06",
+    "B07",
+    "B08",
+    "B8A",
+    "B11",
+    "B12"
+  ],
+  "training_samples": 156,
+  "samples_per_class": {
+    "unknown": 82,
+    "gemstone": 31,
+    "copper": 16,
+    "lithium": 15,
+    "beryl": 7,
+    "cassiterite": 5
+  },
+  "held_out_metrics": {
+    "beryl": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1-score": 0.6666666666666666,
+      "support": 2.0
+    },
+    "cassiterite": {
+      "precision": 0.3333333333333333,
+      "recall": 1.0,
+      "f1-score": 0.5,
+      "support": 1.0
+    },
+    "copper": {
+      "precision": 0.5,
+      "recall": 0.3333333333333333,
+      "f1-score": 0.4,
+      "support": 3.0
+    },
+    "gemstone": {
+      "precision": 0.5,
+      "recall": 0.16666666666666666,
+      "f1-score": 0.25,
+      "support": 6.0
+    },
+    "lithium": {
+      "precision": 0.5,
+      "recall": 0.3333333333333333,
+      "f1-score": 0.4,
+      "support": 3.0
+    },
+    "unknown": {
+      "precision": 0.6363636363636364,
+      "recall": 0.8235294117647058,
+      "f1-score": 0.717948717948718,
+      "support": 17.0
+    },
+    "accuracy": 0.59375,
+    "macro avg": {
+      "precision": 0.5782828282828282,
+      "recall": 0.5261437908496732,
+      "f1-score": 0.4891025641025641,
+      "support": 32.0
+    },
+    "weighted avg": {
+      "precision": 0.5984848484848485,
+      "recall": 0.59375,
+      "f1-score": 0.5605769230769231,
+      "support": 32.0
+    }
+  },
+  "source": "USGS splib07b resampled to Sentinel-2 MSI (ScienceBase item 586e8c88e4b0f5ce109fccae)"
+}

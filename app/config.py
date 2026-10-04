@@ -18,13 +18,24 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
-    @property
-    def model_path(self) -> Path:
-        return self.model_dir / f"mineral_classifier_{self.model_version}.joblib"
+    # One trained model per real sensor in MDMIS_IoT_Budget.docx. "lab" is
+    # the Raman/RRUFF model (the SRS's "Lab Spectrometer -> ground truth
+    # validation" role); sentinel2/as7265x are the two actual field-sensor
+    # classifiers. A sensor_type not in this map (gpr/em/magnetometer/gamma)
+    # has no model yet - see README "Not yet built".
+    model_name_by_sensor: dict[str, str] = {
+        "lab": "mineral_classifier",
+        "sentinel2": "mineral_classifier_s2",
+        "as7265x": "mineral_classifier_as7265x",
+    }
 
-    @property
-    def meta_path(self) -> Path:
-        return self.model_dir / f"mineral_classifier_{self.model_version}.meta.json"
+    def model_path(self, sensor_type: str) -> Path:
+        name = self.model_name_by_sensor.get(sensor_type, self.model_name_by_sensor["lab"])
+        return self.model_dir / f"{name}_{self.model_version}.joblib"
+
+    def meta_path(self, sensor_type: str) -> Path:
+        name = self.model_name_by_sensor.get(sensor_type, self.model_name_by_sensor["lab"])
+        return self.model_dir / f"{name}_{self.model_version}.meta.json"
 
 
 settings = Settings()

@@ -16,11 +16,19 @@ SENTINEL2_BANDS: dict[str, float] = {
     "B02": 490.0,   # blue
     "B03": 560.0,   # green
     "B04": 665.0,   # red
+    "B05": 705.0,   # red edge
+    "B06": 740.0,   # red edge
+    "B07": 783.0,   # red edge
     "B08": 842.0,   # NIR
     "B8A": 865.0,   # narrow NIR
     "B11": 1610.0,  # SWIR 1
     "B12": 2190.0,  # SWIR 2
 }
+# B01 (coastal aerosol), B09 (water vapour) and B10 (cirrus) are deliberately
+# excluded: they're atmospheric-correction support bands, not meant for
+# surface characterization, and B10 isn't even present in the L2A surface-
+# reflectance product fetch_sentinel2.py pulls from — training on it would
+# make the model depend on a band it will never see live.
 
 # AS7265x breakout (AMS AS72651/2/3 triad), 18 channels, nm. Datasheet
 # center wavelengths — this is the actual ground-level point spectrometer
