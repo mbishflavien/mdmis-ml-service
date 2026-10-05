@@ -6,7 +6,17 @@ Mineralogical basis for each grouping:
   Fe and Mn end-members of columbite and tantalite map here.
 - wolframite: a solid-solution series between the iron end-member
   (ferberite) and manganese end-member (huebnerite); RRUFF catalogs the
-  end-members, not "wolframite" itself.
+  end-members, not "wolframite" itself. Scheelite (CaWO4) is a
+  mineralogically distinct species, but every tungsten deposit textbook
+  pairs it with wolframite as "the two tungsten ore minerals" — they
+  occur in the same skarn/vein systems and are mined for the same
+  target commodity. Neither USGS splib07 nor ECOSTRESS carries actual
+  wolframite/ferberite/huebnerite VSWIR spectra (checked directly, zero
+  hits under any spelling), so scheelite is the only real public VSWIR
+  data standing in for "tungsten ore" until real field samples arrive.
+  This is a commodity-target grouping like coltan/lithium below, not a
+  claim that scheelite and wolframite look spectrally identical — a
+  lab-confirmed result should still say which species it actually was.
 - lithium: the lithium-bearing pegmatite minerals actually seen in the
   field (spodumene, petalite, amblygonite, lepidolite), not elemental
   lithium (which has no mineral form / Raman spectrum).
@@ -40,6 +50,7 @@ MINERAL_NAME_MAP: dict[str, str] = {
     "Tantalite": "coltan",
     "Ferberite": "wolframite",
     "Huebnerite": "wolframite",
+    "Scheelite": "wolframite",  # see wolframite note above — real public VSWIR data, different species
     "Gold": "gold",
     "Beryl": "beryl",
     "Spodumene": "lithium",

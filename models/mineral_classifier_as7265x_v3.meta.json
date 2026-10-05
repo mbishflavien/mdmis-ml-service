@@ -1,0 +1,110 @@
+{
+  "version": "v3",
+  "created_at": "2026-10-05T14:21:15.668726+00:00",
+  "classes": [
+    "beryl",
+    "cassiterite",
+    "coltan",
+    "copper",
+    "gemstone",
+    "lithium",
+    "unknown",
+    "wolframite"
+  ],
+  "dropped_classes": {},
+  "feature_columns": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "R",
+    "I",
+    "S",
+    "J",
+    "T",
+    "U",
+    "V",
+    "W",
+    "K",
+    "L"
+  ],
+  "training_samples": 361,
+  "samples_per_class": {
+    "unknown": 185,
+    "gemstone": 55,
+    "copper": 46,
+    "lithium": 39,
+    "beryl": 13,
+    "cassiterite": 11,
+    "coltan": 6,
+    "wolframite": 6
+  },
+  "held_out_metrics": {
+    "beryl": {
+      "precision": 0.6666666666666666,
+      "recall": 0.6666666666666666,
+      "f1-score": 0.6666666666666666,
+      "support": 3.0
+    },
+    "cassiterite": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "coltan": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 1.0
+    },
+    "copper": {
+      "precision": 0.46153846153846156,
+      "recall": 0.6666666666666666,
+      "f1-score": 0.5454545454545454,
+      "support": 9.0
+    },
+    "gemstone": {
+      "precision": 0.625,
+      "recall": 0.45454545454545453,
+      "f1-score": 0.5263157894736842,
+      "support": 11.0
+    },
+    "lithium": {
+      "precision": 0.25,
+      "recall": 0.25,
+      "f1-score": 0.25,
+      "support": 8.0
+    },
+    "unknown": {
+      "precision": 0.6,
+      "recall": 0.631578947368421,
+      "f1-score": 0.6153846153846154,
+      "support": 38.0
+    },
+    "wolframite": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 1.0
+    },
+    "accuracy": 0.5342465753424658,
+    "macro avg": {
+      "precision": 0.32540064102564104,
+      "recall": 0.3336822169059011,
+      "f1-score": 0.3254777021224389,
+      "support": 73.0
+    },
+    "weighted avg": {
+      "precision": 0.5182033719704953,
+      "recall": 0.5342465753424658,
+      "f1-score": 0.5216873969577647,
+      "support": 73.0
+    }
+  },
+  "source": "USGS splib07a + ECOSTRESS VSWIR (incl. scheelite as wolframite proxy), resampled to AS7265x bands"
+}

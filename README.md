@@ -57,24 +57,56 @@ python scripts/train.py --dataset data/processed/as7265x_dataset.csv \
     --model-name mineral_classifier_as7265x --version v1 --source "USGS splib07a, resampled to AS7265x bands"
 ```
 
-**A third source closed part of the gap.** [NASA JPL's ECOSTRESS Spectral
+**A third source closed most of the gap.** [NASA JPL's ECOSTRESS Spectral
 Library](https://speclib.jpl.nasa.gov) (ordered via their site, processed
-by JPL staff over ~24h, not instant) adds 198 more VSWIR spectra —
+by JPL staff over ~24h, not instant) adds 204 more VSWIR spectra —
 `scripts/parse_ecostress.py` appends them onto the USGS-derived datasets
 above (`data/raw/ecostress/ecospeclib_all_minerals.zip`, run after
-`parse_usgs_splib.py`). It includes **"Columbite Fe^2+Nb_2O_6" — the
-first real coverage for `coltan` across all three libraries checked**
-(RRUFF, USGS splib07, ECOSTRESS). `gold` and `wolframite` are still at
-zero across all three — a real hole in public spectral libraries for
-those two specifically, not a dataset-picking problem. Only your own
-lab-confirmed field samples (via the retrain loop below) will close them.
+`parse_usgs_splib.py`). Two real wins:
+- **"Columbite Fe^2+Nb_2O_6" — first real `coltan` coverage** across all
+  three libraries checked (RRUFF, USGS splib07, ECOSTRESS). Verified
+  live: a real columbite spectrum through `/classify` correctly returns
+  `coltan` at 72% confidence.
+- **"Scheelite CaWO_4" — first real `wolframite`-class coverage in a
+  VSWIR reflectance library.** Scheelite isn't literally wolframite, but
+  every tungsten-deposit reference treats them as the two ore minerals
+  for the same commodity (same skarn/vein systems, same exploration
+  target) — the same kind of commodity-target grouping already used for
+  `coltan` (columbite+tantalite) and `lithium` (four different pegmatite
+  minerals), documented in `scripts/mineral_mapping.py`. Actual
+  wolframite/ferberite/huebnerite VSWIR spectra are confirmed absent
+  from both USGS splib07 and ECOSTRESS (checked directly under every
+  spelling) — but that's not the whole story, see the `lab`/Raman note
+  below. Verified live: a real scheelite spectrum correctly returns
+  `wolframite` at 63% confidence.
 
-Current (v2, combined USGS+ECOSTRESS) per-class counts: `unknown` 184,
-`gemstone` 55, `copper` 46, `lithium` 39, `beryl` 13, `cassiterite` 11,
-`coltan` 6. `coltan`'s 6 samples is thin — expect noisy per-class metrics
-on that class specifically until real field data backs it up — but it
-existing as a predictable class *at all* is the actual milestone; v1
-structurally could not output `coltan` no matter what the input was.
+**`gold` is the one real, unresolved case**, and it's worth separating
+from the other two: this isn't a "haven't found the right library yet"
+gap like coltan/wolframite were — native gold has no diagnostic
+feature in *either* Raman or VSWIR reflectance (a metallic lattice has
+no absorption bands the way oxides/silicates do), so no spectral library
+will ever carry a usable "Gold" entry for a classifier to learn from
+directly. The real-world practice (and the only honest path here) is
+detecting gold *indirectly*, via the alteration/pathfinder minerals
+that do have real signatures (pyrite, arsenopyrite, sericite, silica
+veining) and flagging their co-occurrence — not something built yet,
+and worth scoping separately before claiming any "gold detection."
+
+**One correction to an earlier claim in this README:** `wolframite`
+was never actually at zero everywhere — the `lab`/Raman model
+(`mineral_classifier`, trained on RRUFF) has **7 real wolframite samples**
+via Ferberite/Huebnerite Raman spectra, and predicts the class
+correctly. The zero was specific to VSWIR reflectance libraries
+(USGS/ECOSTRESS), which is what matters for the `sentinel2`/`as7265x`
+field sensors — but a Raman-capable lab reading was never blind to it.
+
+Current (v3, combined USGS+ECOSTRESS, scheelite included) per-class
+counts: `unknown` 185, `gemstone` 55, `copper` 46, `lithium` 39,
+`beryl` 13, `cassiterite` 11, `coltan` 6, `wolframite` 6. `coltan` and
+`wolframite` are both thin (6 samples each) — expect noisy per-class
+metrics on a small held-out split until real field data backs them up —
+but both existing as predictable classes *at all* is the real milestone;
+v1 structurally could not output either one no matter what the input was.
 
 **Accuracy is much lower than the Raman model** (59-62% vs. 93-97% held
 out) — expected, not a bug: Sentinel-2/AS7265x give the classifier 7-18
@@ -134,8 +166,8 @@ python scripts/train.py --version v1
 # and ecospeclib_all_minerals.zip in place
 python scripts/parse_usgs_splib.py
 python scripts/parse_ecostress.py   # appends onto the same CSVs
-python scripts/train.py --dataset data/processed/sentinel2_dataset.csv --model-name mineral_classifier_s2 --version v2
-python scripts/train.py --dataset data/processed/as7265x_dataset.csv --model-name mineral_classifier_as7265x --version v2
+python scripts/train.py --dataset data/processed/sentinel2_dataset.csv --model-name mineral_classifier_s2 --version v3
+python scripts/train.py --dataset data/processed/as7265x_dataset.csv --model-name mineral_classifier_as7265x --version v3
 
 # optional: real Sentinel-2 band-ratio detector over real coordinates, no training needed
 python scripts/fetch_sentinel2.py   # takes 15-20 min — Planetary Computer's STAC
