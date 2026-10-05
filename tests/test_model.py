@@ -69,8 +69,21 @@ def test_as7265x_classifier():
     _check_well_formed_and_self_predicts("as7265x")
 
 
+def test_pathfinder_sentinel2():
+    from app import pathfinder
+
+    xs = list(SENTINEL2_BANDS.values())
+    # real Cuprite, NV band values, fetched 2026-10-05 via Planetary Computer
+    ys = [0.1972, 0.2218, 0.2582, 0.2807, 0.2929, 0.2939, 0.297, 0.3012, 0.3396, 0.3448]
+    result = pathfinder.classify_pathfinder(xs, ys, sensor_type="sentinel2")
+    assert result["category"] in ("background", "argillic_alteration", "iron_oxide_gossan", "sulfide_pathfinder")
+    assert 0 <= result["pathfinder_score"] <= 100
+    assert "gold" in result["caveat"].lower()
+
+
 if __name__ == "__main__":
     test_lab_classifier()
     test_sentinel2_classifier()
     test_as7265x_classifier()
+    test_pathfinder_sentinel2()
     print("OK")

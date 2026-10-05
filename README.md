@@ -130,6 +130,56 @@ for why the drone stays in the pipeline: at Sentinel-2's 10-60m
 resolution, Rwanda's vegetation cover hides mineral-alteration signals
 that a low-flying drone could still see through to bare/disturbed ground.
 
+### Gold pathfinder indicator (`app/pathfinder.py`, `POST /pathfinder`)
+
+Deliberately **not** part of `/classify` or `MINERAL_CHOICES` — it never
+outputs "gold". Native gold has no diagnostic feature in Raman or VSWIR
+reflectance (a metallic lattice has no absorption bands), so nothing
+built here ever will claim to detect it directly. What's built instead
+is the same indirect signal real gold exploration actually runs on:
+flagging the **alteration minerals** that correlate with gold systems —
+iron-oxide gossan (hematite/goethite/jarosite), argillic alteration
+(kaolinite/illite/alunite/pyrophyllite), and sulfide pathfinders
+(pyrite/arsenopyrite) — against a background class, via a trained
+classifier (`scripts/build_pathfinder_dataset.py` +
+`scripts/pathfinder_mapping.py`, same USGS+ECOSTRESS sources, 309-310
+rows). `pathfinder_score` sums the three gold-associated categories;
+`category`/`category_alternatives` give the underlying breakdown. Every
+response carries a `caveat` field repeating that this is a follow-up
+flag, not a detection.
+
+**Compared directly against `band_ratios.py` on the exact same real
+Cuprite pixel** (chosen because the user explicitly asked "once we know
+it is the best we got" — this is that comparison, not a guess):
+
+| | iron-oxide signal | clay/argillic signal |
+|---|---|---|
+| `band_ratios.py` (rule-based) | **fired** (ratio 1.14 > 1.1) | **fired** (ratio 1.13 > 1.1) |
+| `pathfinder_classifier_s2` (trained) | weak (6%) | moderate (43%, 2nd-highest) |
+
+Both correctly point at argillic/clay alteration. The trained classifier
+**misses the iron-oxide signal** the simple ratio catches cleanly, and
+`background` edges out as its top prediction (51% vs. 43%) where the
+ratio approach is unambiguous. The likely reason: the classifier learned
+from *pure* lab mineral specimens, while a real Sentinel-2 pixel is a
+*mixture* (hematite diluted among soil/rock/vegetation fringe across
+10-60m) — a well-known problem in remote sensing (sub-pixel spectral
+mixing), not a flaw specific to this build.
+
+**Recommendation, not yet acted on:** for `sentinel2`, `band_ratios.py`
+is the better-validated signal right now — it's simpler, needs no
+training data, and the one real-world test favors it. The trained
+`pathfinder_classifier_s2` is a second opinion, not (yet) the primary
+one. For `as7265x`, there's no competing rule-based alternative (the
+SRS's ratio formulas need B11/B12, which AS7265x doesn't have), so the
+trained classifier is the only option there — but AS7265x's 410-940nm
+range structurally can't see the ~2200nm feature `argillic_alteration`
+depends on most (held-out f1 0.24 vs. Sentinel-2's 0.47 for that
+category, consistent with the physical limitation, not noise). Bundling
+this into v3 as a default-on signal should wait for validation against
+more than one real site — right now it's a `/pathfinder` endpoint you
+can call deliberately, not something wired into the main classify flow.
+
 ## Retraining loop (incremental learning)
 
 "Incremental" here means a **scheduled retrain on accumulated data**, not
@@ -169,6 +219,11 @@ python scripts/parse_ecostress.py   # appends onto the same CSVs
 python scripts/train.py --dataset data/processed/sentinel2_dataset.csv --model-name mineral_classifier_s2 --version v3
 python scripts/train.py --dataset data/processed/as7265x_dataset.csv --model-name mineral_classifier_as7265x --version v3
 
+# gold pathfinder indicator models (uses the same usgs_splib/ecostress data above)
+python scripts/build_pathfinder_dataset.py
+python scripts/train.py --dataset data/processed/pathfinder_sentinel2_dataset.csv --model-name pathfinder_classifier_s2 --version v1
+python scripts/train.py --dataset data/processed/pathfinder_as7265x_dataset.csv --model-name pathfinder_classifier_as7265x --version v1
+
 # optional: real Sentinel-2 band-ratio detector over real coordinates, no training needed
 python scripts/fetch_sentinel2.py   # takes 15-20 min — Planetary Computer's STAC
                                      # search is slow (~90s/call) from this network
@@ -178,7 +233,7 @@ uvicorn app.main:app --reload --port 8100
 
 ## API
 
-- `GET /health` — `{status, service, model_versions: {lab, sentinel2, as7265x}}`
+- `GET /health` — `{status, service, model_versions: {lab, sentinel2, as7265x}, pathfinder_versions: {sentinel2, as7265x}}`
 - `POST /classify` (requires `X-ML-Service-Key` header) —
   `{x_values: [float], intensities: [float], sensor_type: "lab"|"sentinel2"|"as7265x"}` →
   `{mineral_type, confidence_score, confidence_alternatives, grade_pct, model_version}`.
@@ -187,6 +242,11 @@ uvicorn app.main:app --reload --port 8100
   quantification needs an instrument calibration curve this model doesn't
   have — that's a geologist/lab task, not something the classifier should
   guess at.
+- `POST /pathfinder` (requires `X-ML-Service-Key` header) —
+  `{x_values: [float], intensities: [float], sensor_type: "sentinel2"|"as7265x"}` →
+  `{category, category_score, category_alternatives, pathfinder_score, caveat, model_version}`.
+  See "Gold pathfinder indicator" above — separate from `/classify` on
+  purpose, never returns "gold" as a value anywhere.
 
 ## Not yet built
 

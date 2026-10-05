@@ -1,0 +1,70 @@
+{
+  "version": "v1",
+  "created_at": "2026-10-05T14:32:03.993307+00:00",
+  "classes": [
+    "argillic_alteration",
+    "background",
+    "iron_oxide_gossan",
+    "sulfide_pathfinder"
+  ],
+  "dropped_classes": {},
+  "feature_columns": [
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06",
+    "B07",
+    "B08",
+    "B8A",
+    "B11",
+    "B12"
+  ],
+  "training_samples": 309,
+  "samples_per_class": {
+    "background": 185,
+    "argillic_alteration": 54,
+    "iron_oxide_gossan": 47,
+    "sulfide_pathfinder": 23
+  },
+  "held_out_metrics": {
+    "argillic_alteration": {
+      "precision": 0.6666666666666666,
+      "recall": 0.36363636363636365,
+      "f1-score": 0.47058823529411764,
+      "support": 11.0
+    },
+    "background": {
+      "precision": 0.7674418604651163,
+      "recall": 0.8918918918918919,
+      "f1-score": 0.825,
+      "support": 37.0
+    },
+    "iron_oxide_gossan": {
+      "precision": 0.7777777777777778,
+      "recall": 0.7777777777777778,
+      "f1-score": 0.7777777777777778,
+      "support": 9.0
+    },
+    "sulfide_pathfinder": {
+      "precision": 0.5,
+      "recall": 0.4,
+      "f1-score": 0.4444444444444444,
+      "support": 5.0
+    },
+    "accuracy": 0.7419354838709677,
+    "macro avg": {
+      "precision": 0.6779715762273901,
+      "recall": 0.6083265083265083,
+      "f1-score": 0.6294526143790848,
+      "support": 62.0
+    },
+    "weighted avg": {
+      "precision": 0.7294948737184297,
+      "recall": 0.7419354838709677,
+      "f1-score": 0.7245756904912503,
+      "support": 62.0
+    }
+  },
+  "source": "USGS splib07a + ECOSTRESS VSWIR alteration minerals (hematite/goethite/jarosite, kaolinite/illite/alunite/pyrophyllite, pyrite/arsenopyrite vs background)"
+}
