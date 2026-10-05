@@ -34,8 +34,10 @@ MINERAL_NAME_MAP: dict[str, str] = {
     "Cassiterite": "cassiterite",
     "Columbite-(Fe)": "coltan",
     "Columbite-(Mn)": "coltan",
+    "Columbite": "coltan",  # ECOSTRESS names the Fe end-member bare, e.g. "Columbite Fe^2+Nb_2O_6"
     "Tantalite-(Fe)": "coltan",
     "Tantalite-(Mn)": "coltan",
+    "Tantalite": "coltan",
     "Ferberite": "wolframite",
     "Huebnerite": "wolframite",
     "Gold": "gold",

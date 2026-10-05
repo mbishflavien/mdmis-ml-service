@@ -1,0 +1,94 @@
+{
+  "version": "v2",
+  "created_at": "2026-10-05T14:08:46.660333+00:00",
+  "classes": [
+    "beryl",
+    "cassiterite",
+    "coltan",
+    "copper",
+    "gemstone",
+    "lithium",
+    "unknown"
+  ],
+  "dropped_classes": {},
+  "feature_columns": [
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06",
+    "B07",
+    "B08",
+    "B8A",
+    "B11",
+    "B12"
+  ],
+  "training_samples": 354,
+  "samples_per_class": {
+    "unknown": 184,
+    "gemstone": 55,
+    "copper": 46,
+    "lithium": 39,
+    "beryl": 13,
+    "cassiterite": 11,
+    "coltan": 6
+  },
+  "held_out_metrics": {
+    "beryl": {
+      "precision": 0.5,
+      "recall": 0.6666666666666666,
+      "f1-score": 0.5714285714285714,
+      "support": 3.0
+    },
+    "cassiterite": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "coltan": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 1.0
+    },
+    "copper": {
+      "precision": 0.5,
+      "recall": 0.6666666666666666,
+      "f1-score": 0.5714285714285714,
+      "support": 9.0
+    },
+    "gemstone": {
+      "precision": 0.5714285714285714,
+      "recall": 0.36363636363636365,
+      "f1-score": 0.4444444444444444,
+      "support": 11.0
+    },
+    "lithium": {
+      "precision": 0.3333333333333333,
+      "recall": 0.125,
+      "f1-score": 0.18181818181818182,
+      "support": 8.0
+    },
+    "unknown": {
+      "precision": 0.6590909090909091,
+      "recall": 0.7837837837837838,
+      "f1-score": 0.7160493827160493,
+      "support": 37.0
+    },
+    "accuracy": 0.5915492957746479,
+    "macro avg": {
+      "precision": 0.3662646876932591,
+      "recall": 0.37225049725049725,
+      "f1-score": 0.3550241645479741,
+      "support": 71.0
+    },
+    "weighted avg": {
+      "precision": 0.5540668251935857,
+      "recall": 0.5915492957746479,
+      "f1-score": 0.5590761177615637,
+      "support": 71.0
+    }
+  },
+  "source": "USGS splib07b (Sentinel-2-resampled) + ECOSTRESS VSWIR mineral spectra"
+}

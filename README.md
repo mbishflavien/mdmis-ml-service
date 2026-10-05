@@ -57,14 +57,24 @@ python scripts/train.py --dataset data/processed/as7265x_dataset.csv \
     --model-name mineral_classifier_as7265x --version v1 --source "USGS splib07a, resampled to AS7265x bands"
 ```
 
-**Known coverage gap, confirmed independently twice:** `gold`, `coltan`,
-and `wolframite` have **zero** usable samples in both USGS splib07 *and*
-the earlier RRUFF Raman database. Native gold is Raman/reflectance-silent
-(metals don't produce diagnostic spectral features by either method), and
-neither library happens to carry columbite-tantalite or wolframite-series
-entries. This isn't one dataset's gap — it's a real hole in public
-spectral libraries for these three ore minerals that only your own
-lab-confirmed field samples (via the retrain loop below) will close.
+**A third source closed part of the gap.** [NASA JPL's ECOSTRESS Spectral
+Library](https://speclib.jpl.nasa.gov) (ordered via their site, processed
+by JPL staff over ~24h, not instant) adds 198 more VSWIR spectra —
+`scripts/parse_ecostress.py` appends them onto the USGS-derived datasets
+above (`data/raw/ecostress/ecospeclib_all_minerals.zip`, run after
+`parse_usgs_splib.py`). It includes **"Columbite Fe^2+Nb_2O_6" — the
+first real coverage for `coltan` across all three libraries checked**
+(RRUFF, USGS splib07, ECOSTRESS). `gold` and `wolframite` are still at
+zero across all three — a real hole in public spectral libraries for
+those two specifically, not a dataset-picking problem. Only your own
+lab-confirmed field samples (via the retrain loop below) will close them.
+
+Current (v2, combined USGS+ECOSTRESS) per-class counts: `unknown` 184,
+`gemstone` 55, `copper` 46, `lithium` 39, `beryl` 13, `cassiterite` 11,
+`coltan` 6. `coltan`'s 6 samples is thin — expect noisy per-class metrics
+on that class specifically until real field data backs it up — but it
+existing as a predictable class *at all* is the actual milestone; v1
+structurally could not output `coltan` no matter what the input was.
 
 **Accuracy is much lower than the Raman model** (59-62% vs. 93-97% held
 out) — expected, not a bug: Sentinel-2/AS7265x give the classifier 7-18
@@ -72,11 +82,6 @@ broad bands to work with, versus a 200-point Raman fingerprint. Multispectral
 reflectance is inherently less mineral-specific than Raman spectroscopy;
 this is a known tradeoff in the remote-sensing literature, and the honest
 numbers are in each `models/*.meta.json`.
-
-**A second source, in progress, not yet needed:** NASA JPL's ECOSTRESS
-Spectral Library (order placed 2026-10-04, processed by JPL staff — email
-said "within a week") — a nice-to-have second opinion once it lands, not
-a blocker anymore now that USGS splib is in.
 
 ### Sentinel-2 band-ratio detector (`app/band_ratios.py`)
 Implements the SRS's own formulas — Iron Oxide (B11/B08), Carbonate
@@ -125,10 +130,12 @@ python scripts/download_data.py    # ~300MB, one-time
 python scripts/build_dataset.py
 python scripts/train.py --version v1
 
-# sentinel2 + as7265x models — see "Data" above for getting usgs_splib/ in place
+# sentinel2 + as7265x models — see "Data" above for getting usgs_splib/
+# and ecospeclib_all_minerals.zip in place
 python scripts/parse_usgs_splib.py
-python scripts/train.py --dataset data/processed/sentinel2_dataset.csv --model-name mineral_classifier_s2 --version v1
-python scripts/train.py --dataset data/processed/as7265x_dataset.csv --model-name mineral_classifier_as7265x --version v1
+python scripts/parse_ecostress.py   # appends onto the same CSVs
+python scripts/train.py --dataset data/processed/sentinel2_dataset.csv --model-name mineral_classifier_s2 --version v2
+python scripts/train.py --dataset data/processed/as7265x_dataset.csv --model-name mineral_classifier_as7265x --version v2
 
 # optional: real Sentinel-2 band-ratio detector over real coordinates, no training needed
 python scripts/fetch_sentinel2.py   # takes 15-20 min — Planetary Computer's STAC
