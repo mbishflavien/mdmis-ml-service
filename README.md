@@ -272,6 +272,19 @@ one tile left part of their block as gap-filled guesses. All 10 seeded
 sites are ingested this way (0% filled); Lake Kivu shows up as a flat
 1,461 m floor at the shoreline sites RW-KRG-09 and RW-RTS-10.
 
+The 12 North Kivu sites imported from IPIS open data
+(`MDMIS_BACKEND- app/import_ipis.py`) are ingested the same way, 0%
+filled: Masisi/Rubaya highlands ~1,500–2,760 m, Walikale lowland forest
+~550–870 m, two Lubero sites just north of the equator.
+
+**Caveat — surface, not ground:** Copernicus GLO-30 is a *surface* model
+(its files are named `..._DSM_...`). Over forest it measures the
+treetops, not the soil — in Walikale's rainforest that can be 30–40 m
+above the real ground, which also shifts every depth placed below it. A
+drone DTM from WebODM (which separates bare ground from vegetation)
+fixes this per site; until then, treat forested-site elevations and
+depths as approximate.
+
 Writes `data/terrain/<site>/` (gitignored). API: `GET /terrain/{site_id}`
 → DemGrid; `POST /terrain/{site_id}/place` with `[{lat, lon, depth_m}]`
 → surface and absolute elevation per reading. Holes in the source are
