@@ -67,6 +67,16 @@ class Sentinel2ReadingRequest(BaseModel):
     captured_at: datetime | None = None
 
 
+class ReadingPosition(BaseModel):
+    lat: float
+    lon: float
+    depth_m: float = 0.0  # metres below the ground surface
+
+
+class PlaceReadingsRequest(BaseModel):
+    readings: list[ReadingPosition] = Field(min_length=1, max_length=10_000)
+
+
 class BandRatiosOut(BaseModel):
     iron_oxide: float
     carbonate: float

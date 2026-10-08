@@ -1,3 +1,7 @@
+import json
+import re
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException, status
 
 from app import model, pathfinder
@@ -13,6 +17,7 @@ from app.schemas import (
     PathfinderCategoryAlternative,
     PathfinderRequest,
     PathfinderResponse,
+    PlaceReadingsRequest,
     ReadingResponse,
 )
 from app.security import require_service_key
@@ -20,6 +25,7 @@ from app.spectral import SpectrumRangeError
 from app.sensor_bands import SENTINEL2_BANDS
 from app.translation import as7265x, sentinel2
 from app.translation.observation import Observation
+from app.translation.terrain import TerrainModel
 
 app = FastAPI(title="MDMIS ML Service", version="1.0.0")
 
@@ -158,3 +164,38 @@ def _run_models(observation: Observation) -> ReadingResponse:
         x_values=observation.wavelengths_nm, intensities=observation.values, sensor_type=observation.sensor_type,
     ))
     return ReadingResponse(observation=observation, mineral=mineral, pathfinder=found)
+
+
+_TERRAIN_DIR = settings.model_dir.parent / "data" / "terrain"
+_SITE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _site_terrain_dir(site_id: str) -> Path:
+    # site_id becomes a path component: reject anything that could escape it.
+    if not _SITE_ID_RE.match(site_id):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid site id.")
+    site_dir = _TERRAIN_DIR / site_id
+    if not (site_dir / "dem_grid.json").exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND,
+                            f"No terrain ingested for {site_id!r} — run scripts/ingest_terrain.py.")
+    return site_dir
+
+
+@app.get("/terrain/{site_id}", dependencies=[Depends(require_service_key)])
+def get_terrain(site_id: str):
+    """The 3D block's surface, in the frontend's DemGrid shape."""
+    return json.loads((_site_terrain_dir(site_id) / "dem_grid.json").read_text())
+
+
+@app.post("/terrain/{site_id}/place", dependencies=[Depends(require_service_key)])
+def place_readings(site_id: str, payload: PlaceReadingsRequest):
+    """Absolute elevation for each reading: surface elevation at its lat/lon
+    minus its depth — where it sits inside the 3D block."""
+    site_dir = _site_terrain_dir(site_id)
+    meta = json.loads((site_dir / "meta.json").read_text())
+    readings = [r.model_dump() for r in payload.readings]
+    pad = 0.001
+    window = (min(r["lon"] for r in readings) - pad, min(r["lat"] for r in readings) - pad,
+              max(r["lon"] for r in readings) + pad, max(r["lat"] for r in readings) + pad)
+    terrain = TerrainModel.from_geotiff(str(site_dir / meta["dtm"]), window_bounds_lonlat=window)
+    return {"site": site_id, "terrain_source": meta["source"], "placed": terrain.place(readings)}

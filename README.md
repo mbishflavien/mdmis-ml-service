@@ -247,7 +247,36 @@ mineral model, the pathfinder and the SRS band ratios.
 `scripts/fetch_sentinel2.py` now goes through this adapter. Nothing in
 it is country-specific: the same adapter serves Rwanda and DRC sites.
 
-Not yet: RadiaCode, GPR (time→depth), VLF-EM, magnetometer, Pi NoIR.
+**Terrain / 3D-block surface (done):** `app/translation/terrain.py`
+loads any elevation GeoTIFF — a WebODM/OpenDroneMap DTM from the drone
+(the real target, usually UTM-projected, cm–dm resolution) or the free
+Copernicus DEM GLO-30 (30 m) as a stand-in until flights happen — and:
+- produces the surface grid in the frontend's existing `DemGrid` shape
+  (`frontend/lib/dem-fetcher.ts`: row 0 = south, col 0 = west, edges
+  included), so `useDemTerrain` can render real terrain instead of the
+  procedural noise the block draws today;
+- places readings: `elevation = surface_elevation(lat, lon) − depth_m`,
+  which is how a GPR/EM/sample reading at 12 m depth gets its position
+  inside the block.
+
+```bash
+python scripts/ingest_terrain.py --site RW-RTG-01 --lat -1.7783 --lon 30.0611 --copernicus
+python scripts/ingest_terrain.py --site RW-RTG-01 --lat -1.7783 --lon 30.0611 --dtm odm_dtm.tif   # after a drone flight
+```
+
+Writes `data/terrain/<site>/` (gitignored). API: `GET /terrain/{site_id}`
+→ DemGrid; `POST /terrain/{site_id}/place` with `[{lat, lon, depth_m}]`
+→ surface and absolute elevation per reading. Holes in the source are
+filled from the nearest valid cell and reported as `filledFraction`, so
+a filled area is never mistaken for a measurement. Verified on real
+Copernicus terrain for RW-RTG-01 (1,478–1,960 m) and on a synthetic
+UTM-35S plane with exactly known heights (`tests/test_terrain.py`).
+Accuracy caveat: a drone DTM without surveyed ground control points is
+accurate in shape and depth but its absolute height can be off by metres
+or more.
+
+Not yet: RadiaCode, GPR (time→depth), VLF-EM, magnetometer, Pi NoIR,
+drone photo metadata.
 
 ## Retraining loop (incremental learning)
 
