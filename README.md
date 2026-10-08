@@ -180,6 +180,45 @@ this into v3 as a default-on signal should wait for validation against
 more than one real site — right now it's a `/pathfinder` endpoint you
 can call deliberately, not something wired into the main classify flow.
 
+## Reading translation layer (`app/translation/`)
+
+Each device in the IoT budget outputs something different (raw counts,
+images, gamma channel counts, radar traces, µT). Before any model sees a
+reading, a per-device **adapter** translates it into one common
+`Observation` format (`app/translation/observation.py`): calibrated values
+in standard units, location/depth/time, quality-check flags, and
+provenance (which adapter and which calibration inputs produced it).
+
+Design rule: **numbers are converted only by deterministic, tested code.**
+AI is meant for the fuzzy parts around the numbers — identifying a file's
+device/format, extracting units/metadata, drafting adapters for new
+devices for human review, explaining QC failures — not for producing the
+values (a misread number would spread silently into the 3D block). That
+AI part isn't built yet; it needs Anthropic API access, which a Claude
+Pro subscription doesn't include.
+
+**AS7265x (done):** `POST /readings/as7265x` takes three readings — the
+sample, a **dark** reading (light blocked) and a **white reference panel**
+reading (Spectralon ≈0.99, PTFE ≈0.95), each as 18 numbers or the raw
+SparkFun serial line — and computes
+`reflectance = (sample − dark) / (white − dark) × panel_reflectance`.
+This matters: the chip outputs light intensity, not reflectance, and the
+models were trained on reflectance, so raw counts would give confident
+nonsense. Readings with a saturated channel, white ≤ dark, or reflectance
+far outside [0, 1] are flagged and **never sent to the models**;
+otherwise the response includes the mineral and pathfinder results.
+`tests/test_translation.py` simulates the chip's output for a real
+training spectrum and checks the round trip recovers the exact
+reflectance and the same prediction. QC thresholds are starting points
+until real field readings exist.
+
+**Field requirement:** every AS7265x session needs a white reference
+panel and a dark reading taken with the same lamp, distance and gain as
+the samples.
+
+Not yet: Sentinel-2 (already reflectance — a thin adapter), RadiaCode,
+GPR (time→depth), VLF-EM, magnetometer, Pi NoIR.
+
 ## Retraining loop (incremental learning)
 
 "Incremental" here means a **scheduled retrain on accumulated data**, not

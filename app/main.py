@@ -3,15 +3,18 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from app import model, pathfinder
 from app.config import settings
 from app.schemas import (
+    AS7265xReadingRequest,
     ClassifyRequest,
     ClassifyResponse,
     ConfidenceAlternative,
     PathfinderCategoryAlternative,
     PathfinderRequest,
     PathfinderResponse,
+    ReadingResponse,
 )
 from app.security import require_service_key
 from app.spectral import SpectrumRangeError
+from app.translation import as7265x
 
 app = FastAPI(title="MDMIS ML Service", version="1.0.0")
 
@@ -97,3 +100,33 @@ def classify_pathfinder(payload: PathfinderRequest):
         caveat=result["caveat"],
         model_version=pathfinder.pathfinder_model_version(payload.sensor_type),
     )
+
+
+@app.post("/readings/as7265x", response_model=ReadingResponse, dependencies=[Depends(require_service_key)])
+def ingest_as7265x_reading(payload: AS7265xReadingRequest):
+    """Raw AS7265x reading -> calibrated Observation -> models. The device's
+    raw counts are never sent to a model directly; see
+    app/translation/as7265x.py for why."""
+    try:
+        sample, dark, white = (
+            as7265x.parse_csv_line(v) if isinstance(v, str) else v
+            for v in (payload.sample, payload.dark, payload.white)
+        )
+        observation = as7265x.translate(
+            sample, dark, white,
+            white_reference_reflectance=payload.white_reference_reflectance,
+            lat=payload.lat, lon=payload.lon, depth_m=payload.depth_m, captured_at=payload.captured_at,
+        )
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+    if not observation.qc.passed:
+        return ReadingResponse(observation=observation)
+
+    mineral = classify(ClassifyRequest(
+        x_values=observation.wavelengths_nm, intensities=observation.values, sensor_type=observation.sensor_type,
+    ))
+    found = classify_pathfinder(PathfinderRequest(
+        x_values=observation.wavelengths_nm, intensities=observation.values, sensor_type=observation.sensor_type,
+    ))
+    return ReadingResponse(observation=observation, mineral=mineral, pathfinder=found)

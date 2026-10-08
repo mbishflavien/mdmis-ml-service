@@ -1,4 +1,8 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
+
+from app.translation.observation import Observation
 
 
 class ClassifyRequest(BaseModel):
@@ -37,6 +41,19 @@ class ClassifyResponse(BaseModel):
     model_version: str
 
 
+class AS7265xReadingRequest(BaseModel):
+    # Each of sample/dark/white is either 18 numbers or one raw
+    # SparkFun-style serial line ("123,456,...") as the device printed it.
+    sample: list[float] | str
+    dark: list[float] | str
+    white: list[float] | str
+    white_reference_reflectance: float = 0.99
+    lat: float | None = None
+    lon: float | None = None
+    depth_m: float | None = None
+    captured_at: datetime | None = None
+
+
 class PathfinderCategoryAlternative(BaseModel):
     category: str
     probability: float
@@ -52,3 +69,11 @@ class PathfinderResponse(BaseModel):
     pathfinder_score: int
     caveat: str
     model_version: str
+
+
+class ReadingResponse(BaseModel):
+    observation: Observation
+    # Both null when observation.qc.passed is false — the models are never
+    # run on a reading that failed translation quality checks.
+    mineral: ClassifyResponse | None = None
+    pathfinder: PathfinderResponse | None = None
