@@ -264,6 +264,14 @@ python scripts/ingest_terrain.py --site RW-RTG-01 --lat -1.7783 --lon 30.0611 --
 python scripts/ingest_terrain.py --site RW-RTG-01 --lat -1.7783 --lon 30.0611 --dtm odm_dtm.tif   # after a drone flight
 ```
 
+For many sites at once, `--sites-json sites.json --copernicus` (a list of
+`{id, lat, lon}`) does a single tile search for all of them (the catalog
+search is the slow part, ~90 s) and stitches every 1°×1° tile a site's
+box touches — 4 of the 10 seeded sites straddle a tile edge, and reading
+one tile left part of their block as gap-filled guesses. All 10 seeded
+sites are ingested this way (0% filled); Lake Kivu shows up as a flat
+1,461 m floor at the shoreline sites RW-KRG-09 and RW-RTS-10.
+
 Writes `data/terrain/<site>/` (gitignored). API: `GET /terrain/{site_id}`
 → DemGrid; `POST /terrain/{site_id}/place` with `[{lat, lon, depth_m}]`
 → surface and absolute elevation per reading. Holes in the source are
