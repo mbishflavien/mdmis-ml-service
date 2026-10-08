@@ -73,8 +73,9 @@ def test_pathfinder_sentinel2():
     from app import pathfinder
 
     xs = list(SENTINEL2_BANDS.values())
-    # real Cuprite, NV band values, fetched 2026-10-05 via Planetary Computer
-    ys = [0.1972, 0.2218, 0.2582, 0.2807, 0.2929, 0.2939, 0.297, 0.3012, 0.3396, 0.3448]
+    # real Cuprite, NV reflectance (scene 2023-09-05, baseline 05.10),
+    # offset-corrected via app/translation/sentinel2.py
+    ys = [0.0972, 0.1218, 0.1582, 0.1807, 0.1929, 0.1939, 0.197, 0.2012, 0.2396, 0.2448]
     result = pathfinder.classify_pathfinder(xs, ys, sensor_type="sentinel2")
     assert result["category"] in ("background", "argillic_alteration", "iron_oxide_gossan", "sulfide_pathfinder")
     assert 0 <= result["pathfinder_score"] <= 100

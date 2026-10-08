@@ -84,7 +84,84 @@ def test_parse_serial_line():
     assert as7265x.parse_csv_line(line) == [float(i) for i in range(18)]
 
 
+S2_DATASET = Path(__file__).resolve().parent.parent / "data" / "processed" / "sentinel2_dataset.csv"
+
+
+def _s2_real_reflectance() -> dict[str, float]:
+    from app.sensor_bands import SENTINEL2_BANDS
+
+    with open(S2_DATASET) as f:
+        row = next(csv.DictReader(f))
+    return {b: float(row[b]) for b in SENTINEL2_BANDS}
+
+
+def _to_l2a_dn(reflectance: dict[str, float], offset: int) -> dict[str, float]:
+    # What an L2A file stores for that reflectance: DN = reflectance*10000 - offset
+    return {b: round(r * 10000 - offset) for b, r in reflectance.items()}
+
+
+def test_s2_new_baseline_applies_offset_and_round_trips():
+    from app.translation import sentinel2
+
+    truth = _s2_real_reflectance()
+    obs = sentinel2.translate(_to_l2a_dn(truth, -1000), "05.10", scl=5)
+    assert obs.provenance.details["boa_add_offset"] == -1000
+    assert np.allclose(obs.values, list(truth.values()), atol=1e-4)
+    if obs.qc.passed:
+        direct = model.classify(obs.wavelengths_nm, list(truth.values()), sensor_type="sentinel2")
+        translated = model.classify(obs.wavelengths_nm, obs.values, sensor_type="sentinel2")
+        assert direct["mineral_type"] == translated["mineral_type"]
+
+
+def test_s2_old_baseline_has_no_offset():
+    from app.translation import sentinel2
+
+    truth = _s2_real_reflectance()
+    obs = sentinel2.translate(_to_l2a_dn(truth, 0), "03.01")
+    assert obs.provenance.details["boa_add_offset"] == 0
+    assert np.allclose(obs.values, list(truth.values()), atol=1e-4)
+
+
+def test_s2_ignoring_offset_reads_too_bright():
+    # The bug this adapter fixes: dividing a new-baseline DN by 10000
+    # without the offset reads 0.1 too bright in every band.
+    truth = _s2_real_reflectance()
+    dn = _to_l2a_dn(truth, -1000)
+    naive = np.array([v / 10000 for v in dn.values()])
+    assert np.allclose(naive - np.array(list(truth.values())), 0.1, atol=1e-4)
+
+
+def test_s2_cloud_and_vegetation_are_flagged():
+    from app.translation import sentinel2
+
+    truth = _s2_real_reflectance()
+    cloudy = sentinel2.translate(_to_l2a_dn(truth, -1000), "05.10", scl=9)
+    assert "scene_class:cloud_high_probability" in cloudy.qc.flags
+
+    leafy = dict(truth, B04=0.04, B08=0.40)  # typical vegetation: dark red, bright NIR
+    veg = sentinel2.translate(_to_l2a_dn(leafy, -1000), "05.10")
+    assert any(f.startswith("vegetated_ndvi") for f in veg.qc.flags)
+
+
+def test_s2_missing_band_is_rejected():
+    from app.translation import sentinel2
+
+    dn = _to_l2a_dn(_s2_real_reflectance(), -1000)
+    del dn["B11"]
+    try:
+        sentinel2.translate(dn, "05.10")
+    except ValueError as e:
+        assert "B11" in str(e)
+        return
+    raise AssertionError("expected ValueError for missing B11")
+
+
 if __name__ == "__main__":
+    test_s2_new_baseline_applies_offset_and_round_trips()
+    test_s2_old_baseline_has_no_offset()
+    test_s2_ignoring_offset_reads_too_bright()
+    test_s2_cloud_and_vegetation_are_flagged()
+    test_s2_missing_band_is_rejected()
     test_round_trip_recovers_reflectance_and_prediction()
     test_raw_counts_without_calibration_differ()
     test_saturated_channel_is_flagged()

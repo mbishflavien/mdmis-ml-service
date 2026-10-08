@@ -119,15 +119,23 @@ numbers are in each `models/*.meta.json`.
 Implements the SRS's own formulas — Iron Oxide (B11/B08), Carbonate
 (B11/B12), Clay (B11/B8A) — a rule-based alteration-style flag that needs
 **zero training data**. Gated on NDVI (computed from the same bands):
-running it against the 10 real seeded Rwandan sites
-(`scripts/fetch_sentinel2.py`) returned a uniform false-positive
-`carbonate_alteration` flag everywhere, which turned out to be vegetation
-canopy (NDVI 0.26-0.55), not geology — confirmed by the one site where it
-worked correctly, Cuprite, NV (NDVI 0.07, bare ground, correctly flagged
-its real published alteration zone). Flags are now suppressed above
-NDVI 0.2 rather than reported misleadingly. This is also a real argument
-for why the drone stays in the pipeline: at Sentinel-2's 10-60m
-resolution, Rwanda's vegetation cover hides mineral-alteration signals
+running it against the seeded Rwandan sites (`scripts/fetch_sentinel2.py`)
+returned a uniform false-positive `carbonate_alteration` flag everywhere,
+which turned out to be vegetation canopy, not geology — confirmed by the
+one site where it worked correctly, Cuprite, NV (bare ground, correctly
+flagged its real published alteration zone). Flags are now suppressed
+above NDVI 0.2 rather than reported misleadingly.
+
+**Correction (2026-10-08):** the first fetches ignored Sentinel-2's
+−1000 offset (see "Reading translation layer"), so every value read ~0.1
+too bright. Re-fetched through the Sentinel-2 adapter, Cuprite is NDVI
+0.11 (still bare), iron-oxide ratio 1.22, clay ratio 1.19 — both still
+fire, more strongly. The 5 Rwandan sites re-fetched so far are NDVI
+0.49–0.88 *and* ESA's own scene classification labels each pixel
+"vegetation" — the vegetation conclusion is stronger, not weaker. The
+other 5 seeded sites haven't been re-fetched yet. This is also a real
+argument for why the drone stays in the pipeline: at Sentinel-2's
+10-60m resolution, vegetation cover hides mineral-alteration signals
 that a low-flying drone could still see through to bare/disturbed ground.
 
 ### Gold pathfinder indicator (`app/pathfinder.py`, `POST /pathfinder`)
@@ -154,17 +162,25 @@ it is the best we got" — this is that comparison, not a guess):
 
 | | iron-oxide signal | clay/argillic signal |
 |---|---|---|
-| `band_ratios.py` (rule-based) | **fired** (ratio 1.14 > 1.1) | **fired** (ratio 1.13 > 1.1) |
-| `pathfinder_classifier_s2` (trained) | weak (6%) | moderate (43%, 2nd-highest) |
+| `band_ratios.py` (rule-based) | **fired** (ratio 1.22 > 1.1) | **fired** (ratio 1.19 > 1.1) |
+| `pathfinder_classifier_s2` (trained) | 29% | 24% |
 
-Both correctly point at argillic/clay alteration. The trained classifier
-**misses the iron-oxide signal** the simple ratio catches cleanly, and
-`background` edges out as its top prediction (51% vs. 43%) where the
-ratio approach is unambiguous. The likely reason: the classifier learned
-from *pure* lab mineral specimens, while a real Sentinel-2 pixel is a
-*mixture* (hematite diluted among soil/rock/vegetation fringe across
-10-60m) — a well-known problem in remote sensing (sub-pixel spectral
-mixing), not a flaw specific to this build.
+(Offset-corrected values. The first version of this comparison used
+uncorrected, too-bright readings and showed iron-oxide at only 6% — part
+of the classifier's apparent "miss" was that bug, not the model.)
+
+Both see iron-oxide and clay alteration, but the trained classifier
+still ranks `background` first (46%), while the ratio approach is
+unambiguous. The likely remaining reason: the classifier learned from
+*pure* lab mineral specimens, while a real Sentinel-2 pixel is a
+*mixture* (minerals diluted among soil/rock across 10-60m) — a
+well-known remote-sensing problem (sub-pixel spectral mixing).
+
+The translation layer's QC matters here too: run on the vegetated
+Rwandan pixels with QC bypassed, the pathfinder called all five
+`iron_oxide_gossan` at 85–88% — a confident false alarm on vegetation.
+Through `POST /readings/sentinel2` those pixels are blocked before any
+model runs.
 
 **Recommendation, not yet acted on:** for `sentinel2`, `band_ratios.py`
 is the better-validated signal right now — it's simpler, needs no
@@ -174,8 +190,10 @@ one. For `as7265x`, there's no competing rule-based alternative (the
 SRS's ratio formulas need B11/B12, which AS7265x doesn't have), so the
 trained classifier is the only option there — but AS7265x's 410-940nm
 range structurally can't see the ~2200nm feature `argillic_alteration`
-depends on most (held-out f1 0.24 vs. Sentinel-2's 0.47 for that
-category, consistent with the physical limitation, not noise). Bundling
+depends on most. (An earlier version of this note quoted a single
+held-out split, f1 0.24 vs. 0.47, that overstated the gap; 5-fold
+cross-validation grouped by physical specimen puts the two pathfinder
+models close overall — macro-F1 0.58 vs. 0.63.) Bundling
 this into v3 as a default-on signal should wait for validation against
 more than one real site — right now it's a `/pathfinder` endpoint you
 can call deliberately, not something wired into the main classify flow.
@@ -216,8 +234,20 @@ until real field readings exist.
 panel and a dark reading taken with the same lamp, distance and gain as
 the samples.
 
-Not yet: Sentinel-2 (already reflectance — a thin adapter), RadiaCode,
-GPR (time→depth), VLF-EM, magnetometer, Pi NoIR.
+**Sentinel-2 (done):** `POST /readings/sentinel2` takes the raw L2A
+digital numbers per band (as stored in the product, *not* reflectance),
+the scene's processing baseline (STAC `s2:processing_baseline`) and,
+optionally, the pixel's Scene Classification (SCL) value. It computes
+`reflectance = (DN + offset) / 10000`, where the offset is −1000 for
+baseline 04.00+ (ESA, Jan 2022) and 0 before — not just "divide by
+10000", which is the bug the first fetches had. QC blocks no-data,
+cloud, cloud shadow, cirrus, water, snow, dark-area and vegetation
+pixels (SCL), plus anything with NDVI > 0.2. Passing readings get the
+mineral model, the pathfinder and the SRS band ratios.
+`scripts/fetch_sentinel2.py` now goes through this adapter. Nothing in
+it is country-specific: the same adapter serves Rwanda and DRC sites.
+
+Not yet: RadiaCode, GPR (time→depth), VLF-EM, magnetometer, Pi NoIR.
 
 ## Retraining loop (incremental learning)
 

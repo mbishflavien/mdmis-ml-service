@@ -54,6 +54,27 @@ class AS7265xReadingRequest(BaseModel):
     captured_at: datetime | None = None
 
 
+class Sentinel2ReadingRequest(BaseModel):
+    # Raw L2A digital numbers per band, exactly as stored in the product
+    # (B02..B12, see app.sensor_bands.SENTINEL2_BANDS) — not reflectance.
+    bands: dict[str, float]
+    # From the scene metadata (STAC "s2:processing_baseline"), e.g. "05.10".
+    # Decides whether the -1000 offset applies.
+    processing_baseline: str
+    scl: int | None = None
+    lat: float | None = None
+    lon: float | None = None
+    captured_at: datetime | None = None
+
+
+class BandRatiosOut(BaseModel):
+    iron_oxide: float
+    carbonate: float
+    clay: float
+    ndvi: float
+    flags: list[str]
+
+
 class PathfinderCategoryAlternative(BaseModel):
     category: str
     probability: float
@@ -77,3 +98,5 @@ class ReadingResponse(BaseModel):
     # run on a reading that failed translation quality checks.
     mineral: ClassifyResponse | None = None
     pathfinder: PathfinderResponse | None = None
+    # Sentinel-2 only: the SRS's rule-based alteration ratios.
+    band_ratios: BandRatiosOut | None = None

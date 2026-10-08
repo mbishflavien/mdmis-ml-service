@@ -29,7 +29,9 @@ from rasterio.warp import transform as warp_transform
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.band_ratios import compute_band_ratios  # noqa: E402
+from app.pathfinder import classify_pathfinder  # noqa: E402
 from app.sensor_bands import SENTINEL2_BANDS  # noqa: E402
+from app.translation import sentinel2  # noqa: E402
 
 OUT_PATH = Path(__file__).resolve().parent.parent / "data" / "processed" / "sentinel2_points.csv"
 
@@ -54,7 +56,8 @@ POINTS = [
 def find_least_cloudy_scene(catalog, lat: float, lon: float):
     # The STAC query/sortby extensions are slow (or hang) against this API
     # for some collections — pull a page of recent items and pick the
-    # least-cloudy one client-side instead, which is fast and reliable.
+    # least-cloudy one client-side instead. Scene-level cloud cover says
+    # nothing about this exact pixel; the SCL check in the adapter does.
     search = catalog.search(
         collections=["sentinel-2-l2a"],
         bbox=[lon - 0.01, lat - 0.01, lon + 0.01, lat + 0.01],
@@ -66,18 +69,12 @@ def find_least_cloudy_scene(catalog, lat: float, lon: float):
     return min(items, key=lambda it: it.properties.get("eo:cloud_cover", 100))
 
 
-def sample_bands(item, lat: float, lon: float) -> dict[str, float]:
-    values = {}
-    for band in SENTINEL2_BANDS:
-        href = planetary_computer.sign(item.assets[band].href)
-        with rasterio.open(href) as src:
-            xs, ys = warp_transform("EPSG:4326", src.crs, [lon], [lat])
-            row, col = src.index(xs[0], ys[0])
-            window = ((row, row + 1), (col, col + 1))
-            value = src.read(1, window=window)[0, 0]
-            # L2A surface reflectance is scaled by 10000 per ESA's product spec
-            values[band] = float(value) / 10000.0
-    return values
+def sample_pixel(item, asset: str, lat: float, lon: float) -> float:
+    href = planetary_computer.sign(item.assets[asset].href)
+    with rasterio.open(href) as src:
+        xs, ys = warp_transform("EPSG:4326", src.crs, [lon], [lat])
+        row, col = src.index(xs[0], ys[0])
+        return float(src.read(1, window=((row, row + 1), (col, col + 1)))[0, 0])
 
 
 def main() -> None:
@@ -87,28 +84,41 @@ def main() -> None:
     with open(OUT_PATH, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["site", "lat", "lon", "reference_label", "scene_date", "cloud_cover"]
+            ["site", "lat", "lon", "reference_label", "scene_date", "processing_baseline", "scl"]
+            + [f"dn_{b}" for b in SENTINEL2_BANDS]
             + list(SENTINEL2_BANDS)
-            + ["iron_oxide_ratio", "carbonate_ratio", "clay_ratio", "ndvi", "vegetated", "flags"]
+            + ["qc_passed", "qc_flags", "ndvi", "iron_oxide_ratio", "carbonate_ratio", "clay_ratio",
+               "ratio_flags", "pathfinder_category", "pathfinder_score"]
         )
 
         for name, lat, lon, label in POINTS:
-            print(f"[fetching] {name} ({lat}, {lon})")
+            print(f"[fetching] {name} ({lat}, {lon})", flush=True)
             item = find_least_cloudy_scene(catalog, lat, lon)
             if item is None:
-                print(f"  no clear scene found for {name}, skipping")
+                print(f"  no scene found for {name}, skipping")
                 continue
-            bands = sample_bands(item, lat, lon)
-            ratios = compute_band_ratios(bands)
+            dn = {b: sample_pixel(item, b, lat, lon) for b in SENTINEL2_BANDS}
+            scl = int(sample_pixel(item, "SCL", lat, lon))
+            baseline = item.properties["s2:processing_baseline"]
+            obs = sentinel2.translate(dn, baseline, scl=scl, lat=lat, lon=lon, captured_at=item.datetime)
+            refl = dict(zip(SENTINEL2_BANDS, obs.values))
+
+            # Ratios and pathfinder are computed even on QC-failed pixels
+            # here (unlike the API) so this research table shows *why* they
+            # would mislead — the qc columns say which rows to trust.
+            ratios = compute_band_ratios(refl)
+            pf = classify_pathfinder(obs.wavelengths_nm, obs.values, sensor_type="sentinel2")
             writer.writerow(
-                [name, lat, lon, label, item.datetime.date().isoformat(), item.properties.get("eo:cloud_cover")]
-                + [bands[b] for b in SENTINEL2_BANDS]
-                + [ratios.iron_oxide, ratios.carbonate, ratios.clay, ratios.ndvi, ratios.vegetated,
-                   ";".join(ratios.flags)]
+                [name, lat, lon, label, item.datetime.date().isoformat(), baseline, scl]
+                + [dn[b] for b in SENTINEL2_BANDS]
+                + obs.values
+                + [obs.qc.passed, ";".join(obs.qc.flags), round(ratios.ndvi, 4), round(ratios.iron_oxide, 4),
+                   round(ratios.carbonate, 4), round(ratios.clay, 4), ";".join(ratios.flags),
+                   pf["category"], pf["pathfinder_score"]]
             )
-            print(f"  NDVI={ratios.ndvi:.3f} ({'vegetated, ratios unreliable' if ratios.vegetated else 'bare ground'}) "
-                  f"Fe2O3={ratios.iron_oxide:.3f} CO3={ratios.carbonate:.3f} "
-                  f"clay={ratios.clay:.3f} flags={ratios.flags}")
+            print(f"  baseline={baseline} scl={scl} qc={'PASS' if obs.qc.passed else obs.qc.flags} "
+                  f"NDVI={ratios.ndvi:.3f} Fe2O3={ratios.iron_oxide:.3f} clay={ratios.clay:.3f} "
+                  f"ratio_flags={ratios.flags} pathfinder={pf['category']}({pf['pathfinder_score']})", flush=True)
 
     print(f"\nWrote {OUT_PATH}")
 

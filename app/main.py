@@ -2,8 +2,11 @@ from fastapi import Depends, FastAPI, HTTPException, status
 
 from app import model, pathfinder
 from app.config import settings
+from app.band_ratios import compute_band_ratios
 from app.schemas import (
     AS7265xReadingRequest,
+    BandRatiosOut,
+    Sentinel2ReadingRequest,
     ClassifyRequest,
     ClassifyResponse,
     ConfidenceAlternative,
@@ -14,7 +17,9 @@ from app.schemas import (
 )
 from app.security import require_service_key
 from app.spectral import SpectrumRangeError
-from app.translation import as7265x
+from app.sensor_bands import SENTINEL2_BANDS
+from app.translation import as7265x, sentinel2
+from app.translation.observation import Observation
 
 app = FastAPI(title="MDMIS ML Service", version="1.0.0")
 
@@ -119,10 +124,33 @@ def ingest_as7265x_reading(payload: AS7265xReadingRequest):
         )
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    return _run_models(observation)
 
+
+@app.post("/readings/sentinel2", response_model=ReadingResponse, dependencies=[Depends(require_service_key)])
+def ingest_sentinel2_reading(payload: Sentinel2ReadingRequest):
+    """Raw L2A digital numbers -> reflectance Observation -> models + the
+    SRS band ratios. See app/translation/sentinel2.py for the offset/QC."""
+    try:
+        observation = sentinel2.translate(
+            payload.bands, payload.processing_baseline, scl=payload.scl,
+            lat=payload.lat, lon=payload.lon, captured_at=payload.captured_at,
+        )
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    response = _run_models(observation)
+    if observation.qc.passed:
+        r = compute_band_ratios(dict(zip(SENTINEL2_BANDS, observation.values)))
+        response.band_ratios = BandRatiosOut(
+            iron_oxide=r.iron_oxide, carbonate=r.carbonate, clay=r.clay, ndvi=r.ndvi, flags=r.flags,
+        )
+    return response
+
+
+def _run_models(observation: Observation) -> ReadingResponse:
+    # A reading that failed translation QC never reaches a model.
     if not observation.qc.passed:
         return ReadingResponse(observation=observation)
-
     mineral = classify(ClassifyRequest(
         x_values=observation.wavelengths_nm, intensities=observation.values, sensor_type=observation.sensor_type,
     ))
