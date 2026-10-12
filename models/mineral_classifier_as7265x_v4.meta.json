@@ -1,0 +1,107 @@
+{
+  "version": "v4",
+  "created_at": "2026-10-12T15:54:28.469720+00:00",
+  "classes": [
+    "beryl",
+    "cassiterite",
+    "coltan",
+    "copper",
+    "gemstone",
+    "lithium",
+    "unknown",
+    "wolframite"
+  ],
+  "dropped_classes": {},
+  "feature_columns": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "R",
+    "I",
+    "S",
+    "J",
+    "T",
+    "U",
+    "V",
+    "W",
+    "K",
+    "L"
+  ],
+  "training_samples": 361,
+  "samples_per_class": {
+    "unknown": 185,
+    "gemstone": 55,
+    "copper": 46,
+    "lithium": 39,
+    "beryl": 13,
+    "cassiterite": 11,
+    "coltan": 6,
+    "wolframite": 6
+  },
+  "held_out_metrics": {
+    "beryl": {
+      "precision": 1.0,
+      "recall": 0.42857142857142855,
+      "f1-score": 0.6,
+      "support": 7.0
+    },
+    "cassiterite": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 1.0
+    },
+    "coltan": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 0.0
+    },
+    "copper": {
+      "precision": 0.2222222222222222,
+      "recall": 1.0,
+      "f1-score": 0.36363636363636365,
+      "support": 2.0
+    },
+    "gemstone": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 5.0
+    },
+    "lithium": {
+      "precision": 0.6,
+      "recall": 1.0,
+      "f1-score": 0.75,
+      "support": 3.0
+    },
+    "unknown": {
+      "precision": 0.8085106382978723,
+      "recall": 0.7916666666666666,
+      "f1-score": 0.8,
+      "support": 48.0
+    },
+    "accuracy": 0.7121212121212122,
+    "macro avg": {
+      "precision": 0.5186761229314422,
+      "recall": 0.6028911564625851,
+      "f1-score": 0.5019480519480519,
+      "support": 66.0
+    },
+    "weighted avg": {
+      "precision": 0.7432265921627623,
+      "recall": 0.7121212121212122,
+      "f1-score": 0.7057162534435263,
+      "support": 66.0
+    }
+  },
+  "source": "USGS splib07a + ECOSTRESS VSWIR (incl. scheelite as wolframite proxy), resampled to AS7265x bands",
+  "features": "shape",
+  "model": "gradient_boosting",
+  "calibration": "isotonic"
+}

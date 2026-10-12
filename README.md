@@ -100,7 +100,7 @@ correctly. The zero was specific to VSWIR reflectance libraries
 (USGS/ECOSTRESS), which is what matters for the `sentinel2`/`as7265x`
 field sensors — but a Raman-capable lab reading was never blind to it.
 
-Current (v3, combined USGS+ECOSTRESS, scheelite included) per-class
+Current (v3/v4, combined USGS+ECOSTRESS, scheelite included) per-class
 counts: `unknown` 185, `gemstone` 55, `copper` 46, `lithium` 39,
 `beryl` 13, `cassiterite` 11, `coltan` 6, `wolframite` 6. `coltan` and
 `wolframite` are both thin (6 samples each) — expect noisy per-class
@@ -108,12 +108,61 @@ metrics on a small held-out split until real field data backs them up —
 but both existing as predictable classes *at all* is the real milestone;
 v1 structurally could not output either one no matter what the input was.
 
-**Accuracy is much lower than the Raman model** (59-62% vs. 93-97% held
-out) — expected, not a bug: Sentinel-2/AS7265x give the classifier 7-18
-broad bands to work with, versus a 200-point Raman fingerprint. Multispectral
-reflectance is inherently less mineral-specific than Raman spectroscopy;
-this is a known tradeoff in the remote-sensing literature, and the honest
-numbers are in each `models/*.meta.json`.
+### Model evaluation (`scripts/evaluate.py`)
+
+Every number below is **5-fold cross-validation grouped by physical
+specimen**, repeated over 3 random splits (mean shown; std was 0.00-0.03).
+Grouping matters: the same mineral sample often appears several times
+(different grain sizes, orientations, or both USGS and ECOSTRESS). A plain
+random split puts copies of one sample on both sides and inflates the score
+- the old lab model "scored" 0.93-1.00 that way. Classes with fewer than 5
+distinct specimens (`wolframite`, plus `coltan` for the reflectance sensors)
+can't be scored honestly and are left out of the evaluation, though the
+models still train on them and can predict them.
+
+Metric: **macro-F1** (every class counts equally, so the model can't score
+well by just saying `unknown`, the biggest class).
+
+| model | always guess the biggest class | v3 (raw bands + random forest) | **v4 / pathfinder v2** | what changed |
+|---|---|---|---|---|
+| `lab` (Raman) | 0.07 | 0.78 | **0.88** | spectral-angle nearest neighbours |
+| `sentinel2` | 0.12 | 0.39 | **0.49** | shape features + spectral angle + calibration |
+| `as7265x` | 0.12 | 0.41 | **0.50** | shape features + gradient boosting + calibration |
+| `pathfinder` sentinel2 | 0.19 | 0.66 | **0.80** | shape features + logistic regression |
+| `pathfinder` as7265x | 0.19 | 0.59 | **0.76** | shape features + logistic regression |
+
+What the changes are (`app/pipelines.py`, `DEPLOYED`):
+
+- **Shape features.** Each spectrum is divided by its own average
+  brightness, then slopes between neighbouring bands and log ratios between
+  band pairs are added. A mineral's identity is in the *shape* of its
+  spectrum; overall brightness changes with grain size, moisture and
+  lighting. That makes the models less sensitive to those changes, which
+  matters even more for field readings than for lab ones.
+- **Spectral Angle Mapper** (nearest neighbours by cosine angle). This is
+  the classic method in remote sensing. It compares spectral shape and
+  ignores brightness.
+- **Calibration** (isotonic, `sentinel2` + `as7265x` only). Before it, these
+  two models said "90%+ sure" on readings where they were right only about
+  63-76% of the time. After it, the stated confidence matches how often
+  they are actually right (calibration error 0.06-0.09). As a result they
+  now rarely claim 90%+, which is honest for 7-18 bands. `lab` and the
+  pathfinder models were already well calibrated (right 91-99% of the time
+  when they say 90%+).
+- The configuration was chosen with **nested** cross-validation
+  (`--nested`), so the scores aren't inflated by trying many options and
+  keeping the best one.
+
+`scripts/train.py --deployed <name>` trains exactly the evaluated
+configuration. `train.py`'s own held-out split is now grouped by specimen
+too, but it is a single split, so the numbers in `models/*.meta.json` are
+noisier than the table above.
+
+**The limit hasn't moved:** all of this is lab spectra (pure specimens).
+Sentinel-2/AS7265x still give 7-18 broad bands against Raman's ~200-point
+fingerprint. Real field readings add mixing, soil, and moisture. The next
+big gain comes from real, lab-confirmed field readings fed through the
+retraining loop, not from more tuning here.
 
 ### Sentinel-2 band-ratio detector (`app/band_ratios.py`)
 Implements the SRS's own formulas — Iron Oxide (B11/B08), Carbonate
@@ -191,9 +240,9 @@ SRS's ratio formulas need B11/B12, which AS7265x doesn't have), so the
 trained classifier is the only option there — but AS7265x's 410-940nm
 range structurally can't see the ~2200nm feature `argillic_alteration`
 depends on most. (An earlier version of this note quoted a single
-held-out split, f1 0.24 vs. 0.47, that overstated the gap; 5-fold
-cross-validation grouped by physical specimen puts the two pathfinder
-models close overall — macro-F1 0.58 vs. 0.63.) Bundling
+held-out split, f1 0.24 vs. 0.47, that overstated the gap. Grouped
+cross-validation puts the two pathfinder models close overall: macro-F1
+0.80 vs. 0.76 for pathfinder v2, see "Model evaluation".) Bundling
 this into v3 as a default-on signal should wait for validation against
 more than one real site — right now it's a `/pathfinder` endpoint you
 can call deliberately, not something wired into the main classify flow.
@@ -329,19 +378,22 @@ copy .env.example .env        # set SERVICE_API_KEY to match the backend's ML_SE
 # lab/Raman model
 python scripts/download_data.py    # ~300MB, one-time
 python scripts/build_dataset.py
-python scripts/train.py --version v1
+python scripts/train.py --version v4 --deployed lab
 
 # sentinel2 + as7265x models — see "Data" above for getting usgs_splib/
 # and ecospeclib_all_minerals.zip in place
 python scripts/parse_usgs_splib.py
 python scripts/parse_ecostress.py   # appends onto the same CSVs
-python scripts/train.py --dataset data/processed/sentinel2_dataset.csv --model-name mineral_classifier_s2 --version v3
-python scripts/train.py --dataset data/processed/as7265x_dataset.csv --model-name mineral_classifier_as7265x --version v3
+python scripts/train.py --dataset data/processed/sentinel2_dataset.csv --model-name mineral_classifier_s2 --version v4 --deployed sentinel2
+python scripts/train.py --dataset data/processed/as7265x_dataset.csv --model-name mineral_classifier_as7265x --version v4 --deployed as7265x
 
 # gold pathfinder indicator models (uses the same usgs_splib/ecostress data above)
 python scripts/build_pathfinder_dataset.py
-python scripts/train.py --dataset data/processed/pathfinder_sentinel2_dataset.csv --model-name pathfinder_classifier_s2 --version v1
-python scripts/train.py --dataset data/processed/pathfinder_as7265x_dataset.csv --model-name pathfinder_classifier_as7265x --version v1
+python scripts/train.py --dataset data/processed/pathfinder_sentinel2_dataset.csv --model-name pathfinder_classifier_s2 --version v2 --deployed pathfinder_sentinel2
+python scripts/train.py --dataset data/processed/pathfinder_as7265x_dataset.csv --model-name pathfinder_classifier_as7265x --version v2 --deployed pathfinder_as7265x
+
+# grouped cross-validation scorecard (the "Model evaluation" table)
+python scripts/evaluate.py              # add --screen / --nested to compare configurations
 
 # optional: real Sentinel-2 band-ratio detector over real coordinates, no training needed
 python scripts/fetch_sentinel2.py   # takes 15-20 min — Planetary Computer's STAC

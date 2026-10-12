@@ -22,15 +22,16 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedGroupKFold
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from app.pipelines import DEPLOYED, FEATURES, MODELS, build_pipeline  # noqa: E402
+from scripts.evaluate import specimen  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = ROOT / "models"
-MIN_SAMPLES_PER_CLASS = 4  # below this, train_test_split can't stratify
+MIN_SAMPLES_PER_CLASS = 4  # below this, a class can't be stratified across folds
 _METADATA_COLUMNS = {"label", "rruff_id", "mineral_name", "source"}
 
 
@@ -47,6 +48,12 @@ def main() -> None:
     parser.add_argument("--model-name", default="mineral_classifier", help="artifact filename prefix")
     parser.add_argument("--version", default="v1")
     parser.add_argument("--source", default="RRUFF Raman spectral database (excellent+fair_unoriented tiers)")
+    parser.add_argument("--features", default="raw", choices=list(FEATURES),
+                        help="feature recipe (app/pipelines.py); pick with scripts/evaluate.py --screen")
+    parser.add_argument("--model", default="random_forest", choices=list(MODELS))
+    parser.add_argument("--calibrate", choices=["sigmoid", "isotonic"], default=None)
+    parser.add_argument("--deployed", choices=list(DEPLOYED),
+                        help="use the recorded deployed setup for this model (overrides --features/--model/--calibrate)")
     args = parser.parse_args()
 
     df = load_dataset(Path(args.dataset))
@@ -64,14 +71,18 @@ def main() -> None:
     X = df[feature_cols].to_numpy(dtype=float)
     y = df["label"].to_numpy()
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    # Held-out check grouped by physical specimen: a random row split puts
+    # copies of the same rock on both sides and reports near-perfect scores
+    # (it did — 1.00 for the lab model). scripts/evaluate.py gives the full
+    # repeated estimate; this is the quick single-split version.
+    groups = df.apply(specimen, axis=1).to_numpy()
+    train_idx, test_idx = next(StratifiedGroupKFold(5, shuffle=True, random_state=42).split(X, y, groups))
+    X_train, X_test, y_train, y_test = X[train_idx], X[test_idx], y[train_idx], y[test_idx]
 
-    pipeline = Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", RandomForestClassifier(n_estimators=300, class_weight="balanced", random_state=42)),
-    ])
+    if args.deployed:
+        cfg = DEPLOYED[args.deployed]
+        args.features, args.model, args.calibrate = cfg["features"], cfg["model"], cfg.get("calibrate")
+    pipeline = build_pipeline(args.features, args.model, args.calibrate)
     pipeline.fit(X_train, y_train)
 
     y_pred = pipeline.predict(X_test)
@@ -96,6 +107,9 @@ def main() -> None:
         "samples_per_class": {k: int(v) for k, v in counts.items()},
         "held_out_metrics": report,
         "source": args.source,
+        "features": args.features,
+        "model": args.model,
+        "calibration": args.calibrate,
     }
     meta_path = MODELS_DIR / f"{args.model_name}_{args.version}.meta.json"
     meta_path.write_text(json.dumps(meta, indent=2))

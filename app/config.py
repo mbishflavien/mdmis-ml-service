@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     service_api_key: str = "dev-insecure-ml-service-key-change-me"
 
     model_dir: Path = Path(__file__).resolve().parent.parent / "models"
-    model_version: str = "v3"
+    model_version: str = "v4"
+    pathfinder_version: str = "v2"
 
     backend_url: str = "http://localhost:8000/api"
 

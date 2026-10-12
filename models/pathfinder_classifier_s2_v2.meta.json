@@ -1,0 +1,73 @@
+{
+  "version": "v2",
+  "created_at": "2026-10-12T15:54:32.233001+00:00",
+  "classes": [
+    "argillic_alteration",
+    "background",
+    "iron_oxide_gossan",
+    "sulfide_pathfinder"
+  ],
+  "dropped_classes": {},
+  "feature_columns": [
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06",
+    "B07",
+    "B08",
+    "B8A",
+    "B11",
+    "B12"
+  ],
+  "training_samples": 309,
+  "samples_per_class": {
+    "background": 185,
+    "argillic_alteration": 54,
+    "iron_oxide_gossan": 47,
+    "sulfide_pathfinder": 23
+  },
+  "held_out_metrics": {
+    "argillic_alteration": {
+      "precision": 1.0,
+      "recall": 0.8571428571428571,
+      "f1-score": 0.9230769230769231,
+      "support": 7.0
+    },
+    "background": {
+      "precision": 0.9666666666666667,
+      "recall": 0.8787878787878788,
+      "f1-score": 0.9206349206349206,
+      "support": 33.0
+    },
+    "iron_oxide_gossan": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 10.0
+    },
+    "sulfide_pathfinder": {
+      "precision": 0.2,
+      "recall": 1.0,
+      "f1-score": 0.3333333333333333,
+      "support": 1.0
+    },
+    "accuracy": 0.9019607843137255,
+    "macro avg": {
+      "precision": 0.7916666666666667,
+      "recall": 0.9339826839826839,
+      "f1-score": 0.7942612942612943,
+      "support": 51.0
+    },
+    "weighted avg": {
+      "precision": 0.9627450980392157,
+      "recall": 0.9019607843137255,
+      "f1-score": 0.9250161603102779,
+      "support": 51.0
+    }
+  },
+  "source": "USGS splib07a + ECOSTRESS VSWIR alteration minerals",
+  "features": "shape",
+  "model": "logistic",
+  "calibration": null
+}

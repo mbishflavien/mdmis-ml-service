@@ -4,7 +4,7 @@ appends them to the public seed dataset, retrains, and writes a new
 model version.
 
 This is "incremental" in the sense of a scheduled retrain-on-accumulated-
-data loop, not per-sample online learning — RandomForestClassifier has no
+data loop, not per-sample online learning — none of the deployed models has a
 partial_fit. That's a deliberate choice (see the plan): far more robust
 than true online learning on a dataset this small, and easy to explain.
 
@@ -79,7 +79,8 @@ def main() -> None:
     import subprocess
 
     subprocess.run(
-        [sys.executable, str(Path(__file__).with_name("train.py")), "--version", args.new_version],
+        [sys.executable, str(Path(__file__).with_name("train.py")), "--version", args.new_version,
+         "--deployed", "lab"],
         check=True,
     )
 

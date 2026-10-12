@@ -41,7 +41,7 @@ _MODEL_NAME_BY_SENSOR = {"sentinel2": "pathfinder_classifier_s2", "as7265x": "pa
 
 
 def _model_path(sensor_type: str, suffix: str) -> str:
-    return str(settings.model_dir / f"{_MODEL_NAME_BY_SENSOR[sensor_type]}_v1.{suffix}")
+    return str(settings.model_dir / f"{_MODEL_NAME_BY_SENSOR[sensor_type]}_{settings.pathfinder_version}.{suffix}")
 
 
 def _load(sensor_type: str):
